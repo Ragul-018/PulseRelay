@@ -174,6 +174,7 @@ class TranscriptRequest(BaseModel):
     transcript: str
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    silent_triage: Optional[dict] = None
 
 
 class TriageAPIResponse(BaseModel):
@@ -204,8 +205,22 @@ async def root():
 
 @app.post("/api/triage", response_model=TriageAPIResponse)
 async def extract_triage(request: TranscriptRequest):
-    """One-shot triage extraction from a transcript string."""
-    result = triage_service.extract(request.transcript)
+    """One-shot triage extraction from a transcript string or silent override payload."""
+    if request.silent_triage and isinstance(request.silent_triage, dict):
+        st = request.silent_triage
+        result = TriageResponse(
+            location=st.get("location"),
+            chief_complaint=st.get("chief_complaint", "Silent Emergency Alert"),
+            consciousness=st.get("consciousness", "responsive"),
+            approx_patient_count=st.get("approx_patient_count", 1),
+            hazards=st.get("hazards", []),
+            missing_critical_info=[],
+            is_silent_override=True,
+            silent_category=st.get("silent_category"),
+        )
+    else:
+        result = triage_service.extract(request.transcript)
+
     timestamp = datetime.now(timezone.utc).isoformat()
 
     location_str, gps_dict = LocationService.resolve_location(

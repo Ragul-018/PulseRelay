@@ -136,7 +136,9 @@ export default function CallerView() {
     setTranscript(silentTranscript);
 
     const payloadTriage = {
-      location: gpsCoords ? `${gpsCoords.latitude.toFixed(4)}, ${gpsCoords.longitude.toFixed(4)}` : 'GPS Location Attached',
+      location: gpsCoords
+        ? `GPS Pin: ${gpsCoords.latitude.toFixed(4)}, ${gpsCoords.longitude.toFixed(4)} (Chennai Sector)`
+        : 'Chennai, Tamil Nadu, India (GPS Attached)',
       chief_complaint: category.chief_complaint,
       consciousness: category.consciousness,
       approx_patient_count: category.patient_count,
@@ -148,18 +150,78 @@ export default function CallerView() {
 
     setTriageResult(payloadTriage);
 
+    const incidentTimestamp = new Date().toISOString();
+
+    // 1. Post Silent Triage to backend (broadcasts telemetry to Dispatchers)
     try {
       await fetch(`${API_BASE}/api/triage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           transcript: silentTranscript,
-          latitude: gpsCoords?.latitude,
-          longitude: gpsCoords?.longitude,
+          latitude: gpsCoords?.latitude || 13.0827,
+          longitude: gpsCoords?.longitude || 80.2707,
+          silent_triage: payloadTriage,
         }),
       });
     } catch (err) {
       console.warn('Backend connection offline, SMS fallback ready:', err);
+    }
+
+    // 2. Automatically send unit dispatch request for the specific silent emergency clicked
+    const silentUnitMapping = {
+      INTRUDER: {
+        unit_id: 'TN-POLICE-4',
+        unit_name: 'Chennai Police Rapid Unit 4',
+        unit_type: 'Patrol / CPR Unit',
+        eta_minutes: 2,
+        speed_mph: 55,
+      },
+      FIRE: {
+        unit_id: 'TN-FIRE-5',
+        unit_name: 'TN Fire & Rescue Engine 5',
+        unit_type: 'Heavy Rescue Engine',
+        eta_minutes: 4,
+        speed_mph: 50,
+      },
+      BLEEDING: {
+        unit_id: '108-ALS-101',
+        unit_name: '108 ALS Ambulance 101',
+        unit_type: '108 Advanced Life Support',
+        eta_minutes: 3,
+        speed_mph: 48,
+      },
+      CHOKING: {
+        unit_id: '108-ALS-101',
+        unit_name: '108 ALS Ambulance 101',
+        unit_type: '108 Advanced Life Support',
+        eta_minutes: 3,
+        speed_mph: 48,
+      },
+    };
+
+    const targetUnit = silentUnitMapping[category.id] || silentUnitMapping.BLEEDING;
+
+    try {
+      const dispatchRes = await fetch(`${API_BASE}/api/dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          incident_timestamp: incidentTimestamp,
+          unit_id: targetUnit.unit_id,
+          unit_name: targetUnit.unit_name,
+          unit_type: targetUnit.unit_type,
+          eta_minutes: targetUnit.eta_minutes,
+          speed_mph: targetUnit.speed_mph,
+        }),
+      });
+
+      if (dispatchRes.ok) {
+        setDispatchedUnit(targetUnit);
+        setEtaSeconds(targetUnit.eta_minutes * 60);
+      }
+    } catch (err) {
+      console.warn('Silent auto-dispatch request warning:', err);
     }
   };
 
