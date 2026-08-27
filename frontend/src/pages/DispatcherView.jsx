@@ -319,9 +319,9 @@ export default function DispatcherView() {
 
   const selectedIndex = useMemo(() => {
     if (!selectedIncident) return 1;
-    const index = incidents.findIndex((inc) => inc.timestamp === selectedIncident.timestamp);
-    return index !== -1 ? incidents.length - index : 1;
-  }, [incidents, selectedIncident]);
+    const index = filteredIncidents.findIndex((inc) => inc.timestamp === selectedIncident.timestamp);
+    return index !== -1 ? index + 1 : 1;
+  }, [filteredIncidents, selectedIncident]);
 
   return (
     <div className="min-h-screen bg-mesh text-gray-100 font-sans">
@@ -446,7 +446,7 @@ export default function DispatcherView() {
                 filteredIncidents.map((incident, i) => {
                   const isSelected = selectedIncident && selectedIncident.timestamp === incident.timestamp;
                   const isLatest = i === 0 && incident.timestamp === incidents[0]?.timestamp;
-                  const actualNumber = incidents.length - incidents.findIndex((x) => x.timestamp === incident.timestamp);
+                  const actualNumber = i + 1;
                   const dispatchRecord = dispatchedRegistry[incident.timestamp];
 
                   const isCleared = clearedIncidentIds.has(incident.timestamp);
