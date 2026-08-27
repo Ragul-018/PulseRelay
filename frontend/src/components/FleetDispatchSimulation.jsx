@@ -1,55 +1,57 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import LiveDispatchMap from './map/LiveDispatchMap';
 
+const CHENNAI_DEFAULT_GPS = [13.0827, 80.2707];
+
 const INITIAL_FLEET = [
   {
-    id: 'ALS-101',
-    name: 'ALS Ambulance 101',
-    type: 'ALS Ambulance',
+    id: '108-ALS-101',
+    name: '108 ALS Ambulance 101',
+    type: '108 Advanced Life Support',
     icon: '🚐',
-    station: 'Station 4 (Central)',
-    stationPos: [37.7749, -122.4194],
+    station: 'Station 4 (Anna Salai, Chennai)',
+    stationPos: [13.0604, 80.2496],
     distMiles: 1.2,
     etaMins: 3,
     speedMph: 48,
     isPrimaryMedical: true,
-    capabilities: ['Advanced Life Support', 'Paramedic Team', 'Defibrillator', 'Trauma Kit'],
+    capabilities: ['Advanced Life Support', '108 Paramedic Team', 'Defibrillator', 'Trauma Kit'],
   },
   {
-    id: 'ALS-102',
-    name: 'Medic Unit 102',
-    type: 'BLS Transport',
+    id: '108-BLS-102',
+    name: '108 Medic Unit 102',
+    type: '108 BLS Transport',
     icon: '🚑',
-    station: 'Station 9 (East)',
-    stationPos: [37.7650, -122.4000],
-    distMiles: 2.8,
-    etaMins: 6,
+    station: 'Kilpauk Medical Station (Chennai)',
+    stationPos: [13.0878, 80.2415],
+    distMiles: 2.4,
+    etaMins: 5,
     speedMph: 42,
     isPrimaryMedical: true,
-    capabilities: ['Basic Life Support', 'EMT Crew', 'Oxygen System'],
+    capabilities: ['Basic Life Support', '108 EMT Crew', 'Oxygen System'],
   },
   {
-    id: 'ENGINE-5',
-    name: 'Fire Engine 5',
+    id: 'TN-FIRE-5',
+    name: 'TN Fire & Rescue Engine 5',
     type: 'Heavy Rescue Engine',
     icon: '🚒',
-    station: 'Station 2 (North)',
-    stationPos: [37.7850, -122.4080],
-    distMiles: 0.9,
-    etaMins: 2,
+    station: 'T. Nagar Fire Station (Chennai)',
+    stationPos: [13.0418, 80.2341],
+    distMiles: 1.8,
+    etaMins: 4,
     speedMph: 50,
     isPrimaryFire: true,
     capabilities: ['Hazmat Suppression', 'Structure Rescue', 'Jaws of Life', 'EMTs on Board'],
   },
   {
-    id: 'CRUISER-4',
-    name: 'Police Rapid Cruiser 4',
+    id: 'TN-POLICE-4',
+    name: 'Chennai Police Rapid Unit 4',
     type: 'Patrol / CPR Unit',
     icon: '🚓',
-    station: 'Sector 7 Patrol',
-    stationPos: [37.7680, -122.4280],
-    distMiles: 0.6,
-    etaMins: 1,
+    station: 'Mylapore Sector Control (Chennai)',
+    stationPos: [13.0338, 80.2678],
+    distMiles: 0.9,
+    etaMins: 2,
     speedMph: 55,
     isPrimaryPolice: true,
     capabilities: ['Rapid CPR / AED', 'Active Threat Response', 'First Responder Certified'],
@@ -105,24 +107,24 @@ export default function FleetDispatchSimulation({
     const isAvailable = (id) => !busyUnitIds.has(id);
 
     if (simulateAmbulanceBusy) {
-      if (isAvailable('CRUISER-4')) return 'CRUISER-4';
-      if (isAvailable('ENGINE-5')) return 'ENGINE-5';
+      if (isAvailable('TN-POLICE-4')) return 'TN-POLICE-4';
+      if (isAvailable('TN-FIRE-5')) return 'TN-FIRE-5';
     }
 
     if (silentCat === 'INTRUDER' || complaint.includes('THREAT') || complaint.includes('INTRUDER')) {
-      if (isAvailable('CRUISER-4')) return 'CRUISER-4';
+      if (isAvailable('TN-POLICE-4')) return 'TN-POLICE-4';
     }
     if (silentCat === 'FIRE' || complaint.includes('FIRE') || complaint.includes('SMOKE') || complaint.includes('TRAPPED')) {
-      if (isAvailable('ENGINE-5')) return 'ENGINE-5';
+      if (isAvailable('TN-FIRE-5')) return 'TN-FIRE-5';
     }
 
     // Default medical recommendation
-    if (isAvailable('ALS-101')) return 'ALS-101';
-    if (isAvailable('ALS-102')) return 'ALS-102';
+    if (isAvailable('108-ALS-101')) return '108-ALS-101';
+    if (isAvailable('108-BLS-102')) return '108-BLS-102';
 
     // Fallback to first non-busy unit
     const firstFree = fleet.find((u) => !busyUnitIds.has(u.id));
-    return firstFree ? firstFree.id : 'ALS-101';
+    return firstFree ? firstFree.id : '108-ALS-101';
   }, [complaint, silentCat, simulateAmbulanceBusy, busyUnitIds, existingDispatchedUnit, fleet]);
 
   // Set default selected unit to recommended unit if none selected or on incident switch
@@ -220,7 +222,7 @@ export default function FleetDispatchSimulation({
               Fleet Telemetry & Dispatch Simulation
             </h3>
             <p className="text-xs text-gray-400">
-              Auto-unit recommendation & nearest-neighbor routing
+              Auto-unit recommendation & nearest-neighbor routing (Chennai Sector)
             </p>
           </div>
         </div>
@@ -270,7 +272,7 @@ export default function FleetDispatchSimulation({
         <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl p-3 flex items-start gap-3 animate-fade-in">
           <span className="text-xl">⚠️</span>
           <div className="text-xs text-amber-200">
-            <span className="font-bold">GRIDLOCK FAIL-SAFE ACTIVE:</span> Primary ambulances are marked on call. System automatically recommending <span className="font-bold underline">Police Rapid Unit (CPR/AED certified)</span> for immediate response while Fire backup is en route.
+            <span className="font-bold">GRIDLOCK FAIL-SAFE ACTIVE:</span> Primary ambulances are marked on call. System automatically recommending <span className="font-bold underline">Chennai Police Rapid Unit (CPR/AED certified)</span> for immediate response while Fire backup is en route.
           </div>
         </div>
       )}
@@ -377,10 +379,10 @@ export default function FleetDispatchSimulation({
 
           {/* Interactive Leaflet & Turf.js Geodesic Live Dispatch Map */}
           <LiveDispatchMap
-            origin={activeUnit.stationPos || [37.7749, -122.4194]}
+            origin={activeUnit.stationPos || [13.0604, 80.2496]}
             destination={[
-              incidentData?.gps_location?.latitude || 37.7833,
-              incidentData?.gps_location?.longitude || -122.4167,
+              incidentData?.gps_location?.latitude || 13.0827,
+              incidentData?.gps_location?.longitude || 80.2707,
             ]}
             isDispatched={dispatchState === 'EN_ROUTE' || dispatchState === 'ON_SCENE'}
             unitIcon={activeUnit.icon}

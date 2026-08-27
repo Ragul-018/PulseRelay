@@ -14,16 +14,16 @@ const WS_URL = `ws://${window.location.hostname || 'localhost'}:${API_PORT}/ws/d
  */
 const SAMPLE_INCIDENT = {
   timestamp: '2026-08-27T10:50:00Z',
-  transcript: "Vehicle collision on 4th and Main St. Driver is unresponsive and bleeding from head. Gasoline leak reported.",
+  transcript: "Vehicle collision on Anna Salai near Thousand Lights, Chennai. Driver is unresponsive and bleeding from head. Gasoline leak reported.",
   triage: {
-    location: "4th St & Main St, Central District",
+    location: "Anna Salai, Thousand Lights, Chennai, Tamil Nadu",
     chief_complaint: "Vehicle Collision — Severe Bleeding & Unresponsive Driver",
     consciousness: "unresponsive",
     approx_patient_count: 2,
     hazards: ["Fuel Leak", "Traffic Obstruction", "Trapped Victim"],
     missing_critical_info: [],
   },
-  gps_location: { latitude: 37.7749, longitude: -122.4194 },
+  gps_location: { latitude: 13.0604, longitude: 80.2496 },
 };
 
 export default function DispatcherView() {
@@ -147,16 +147,16 @@ export default function DispatcherView() {
   // Demo Incident Generator for immediate dispatcher testing
   const handleGenerateDemoIncident = async () => {
     const demoPayload = {
-      transcript: "Emergency! Car crash on 4th and Main St. Driver is unresponsive and trapped. Possible fuel leak.",
+      transcript: "Emergency! Car crash on Anna Salai, T. Nagar Signal, Chennai. Driver is unresponsive and trapped. Possible fuel leak.",
       triage: {
-        location: "4th St & Main St, Central District",
+        location: "Anna Salai, T. Nagar, Chennai, Tamil Nadu",
         chief_complaint: "Motor Vehicle Accident — Unresponsive Driver",
         consciousness: "unresponsive",
         approx_patient_count: 2,
         hazards: ["Active Fuel Leak", "Trapped Victim", "Traffic Obstruction"],
         missing_critical_info: [],
       },
-      gps_location: { latitude: 37.7749, longitude: -122.4194 },
+      gps_location: { latitude: 13.0418, longitude: 80.2341 },
       timestamp: new Date().toISOString(),
     };
 
@@ -169,8 +169,8 @@ export default function DispatcherView() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               transcript: demoPayload.transcript,
-              latitude: 37.7749,
-              longitude: -122.4194,
+              latitude: 13.0418,
+              longitude: 80.2341,
             }),
           });
           break;

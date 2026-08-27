@@ -49,8 +49,8 @@ function MapBoundsController({ origin, destination }) {
  * moving along geodesic path with smooth requestAnimationFrame interpolation.
  */
 export default function LiveDispatchMap({
-  origin = [37.7749, -122.4194],
-  destination = [37.7833, -122.4167],
+  origin = [13.0604, 80.2496],
+  destination = [13.0827, 80.2707],
   isDispatched = false,
   speedMultiplier = 1,
   unitIcon = '🚑',

@@ -63,12 +63,16 @@ class LocationService:
         final_lng = longitude
         ip_info = None
 
-        # If GPS coordinates not provided by browser, fetch IP location
+        # If GPS coordinates not provided by browser, fetch IP location or default to Chennai, TN
         if final_lat is None or final_lng is None:
             ip_info = cls.get_ip_location()
             if ip_info:
                 final_lat = ip_info["latitude"]
                 final_lng = ip_info["longitude"]
+            else:
+                # Default fallback sector: Chennai, Tamil Nadu, India
+                final_lat = 13.0827
+                final_lng = 80.2707
 
         # Determine location text string
         if extracted_location and extracted_location.strip() and extracted_location.lower() != "none":
@@ -76,9 +80,9 @@ class LocationService:
         elif ip_info and ip_info.get("display_name"):
             location_text = f"Device Location: {ip_info['display_name']}"
         elif final_lat is not None and final_lng is not None:
-            location_text = f"GPS Pin: {final_lat:.4f}, {final_lng:.4f}"
+            location_text = f"GPS Pin: {final_lat:.4f}, {final_lng:.4f} (Chennai Sector)"
         else:
-            location_text = "Location Pending Dispatch"
+            location_text = "Chennai, Tamil Nadu, India (GPS Attached)"
 
         gps_dict = None
         if final_lat is not None and final_lng is not None:

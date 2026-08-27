@@ -3,43 +3,43 @@ import LiveDispatchMap from '../map/LiveDispatchMap';
 
 const FLEET_UNITS = [
   {
-    id: 'ALS-101',
-    name: 'ALS Ambulance 101',
-    type: 'ALS Medical Unit',
+    id: '108-ALS-101',
+    name: '108 ALS Ambulance 101',
+    type: '108 Medical Unit (Anna Salai)',
     icon: '🚐',
-    stationPos: [37.7749, -122.4194],
+    stationPos: [13.0604, 80.2496],
     etaMins: 3,
     speedMph: 48,
     category: 'MEDICAL',
   },
   {
-    id: 'ENGINE-5',
-    name: 'Fire Engine 5',
-    type: 'Heavy Rescue Engine',
+    id: 'TN-FIRE-5',
+    name: 'TN Fire & Rescue Engine 5',
+    type: 'Heavy Rescue Engine (T. Nagar)',
     icon: '🚒',
-    stationPos: [37.7850, -122.4080],
-    etaMins: 2,
+    stationPos: [13.0418, 80.2341],
+    etaMins: 4,
     speedMph: 50,
     category: 'FIRE',
   },
   {
-    id: 'CRUISER-4',
-    name: 'Police Rapid Cruiser 4',
-    type: 'Patrol / CPR Unit',
+    id: 'TN-POLICE-4',
+    name: 'Chennai Police Rapid Unit 4',
+    type: 'Patrol / CPR Unit (Mylapore)',
     icon: '🚓',
-    stationPos: [37.7680, -122.4280],
-    etaMins: 1,
+    stationPos: [13.0338, 80.2678],
+    etaMins: 2,
     speedMph: 55,
     category: 'POLICE',
   },
 ];
 
 export default function DispatchSimulationView({
-  incidentGps = { latitude: 37.7833, longitude: -122.4167 },
+  incidentGps = { latitude: 13.0827, longitude: 80.2707 },
   triageCategory = 'MEDICAL',
   onDispatch,
 }) {
-  const [selectedUnitId, setSelectedUnitId] = useState('ALS-101');
+  const [selectedUnitId, setSelectedUnitId] = useState('108-ALS-101');
   const [dispatchStatus, setDispatchStatus] = useState('AVAILABLE'); // AVAILABLE | EN_ROUTE | ON_SCENE
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
 
