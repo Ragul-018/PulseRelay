@@ -1,0 +1,282 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'leaflet/dist/leaflet.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet Container Dark Reset */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #0d1322 !important;
+  font-family: 'Inter', sans-serif;
+  border-radius: 1rem;
+}
+
+/* Custom Marker Styling */
+.custom-leaflet-marker {
+  background: transparent;
+  border: none;
+}
+
+.pulsing-incident-pin {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: rgba(239, 68, 68, 0.25);
+  border: 2px solid #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.9);
+  }
+}
+
+.vehicle-moving-marker {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: rgba(92, 124, 250, 0.3);
+  border: 2px solid #60a5fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 25px rgba(92, 124, 250, 0.8);
+  transition: transform 0.1s linear;
+}
+
+/* ================================================================
+   PulseRelay — Global Design System
+   ================================================================ */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #0a0e1a;
+    color: #e5e7eb;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: rgba(92, 124, 250, 0.3);
+    color: #fff;
+  }
+}
+
+/* ================================================================
+   Glassmorphism Cards
+   ================================================================ */
+
+@layer components {
+  .glass-card {
+    @apply relative overflow-hidden rounded-2xl border border-white/10;
+    background: rgba(17, 24, 39, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .glass-card-light {
+    @apply relative overflow-hidden rounded-2xl border border-white/5;
+    background: rgba(26, 32, 53, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* ================================================================
+     Consciousness Level Badges
+     ================================================================ */
+
+  .badge-responsive {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider;
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  }
+
+  .badge-unresponsive {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider;
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  .badge-unclear {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider;
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* ================================================================
+     Hazard Chips
+     ================================================================ */
+
+  .hazard-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium;
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+
+  /* ================================================================
+     Missing Info Badge
+     ================================================================ */
+
+  .missing-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium;
+    background: rgba(245, 158, 11, 0.1);
+    color: #fcd34d;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* ================================================================
+     Voice Button
+     ================================================================ */
+
+  .voice-btn {
+    @apply relative flex items-center justify-center w-32 h-32 rounded-full cursor-pointer transition-all duration-300;
+    background: linear-gradient(135deg, #4c6ef5 0%, #5c7cfa 50%, #748ffc 100%);
+    box-shadow: 0 0 30px rgba(92, 124, 250, 0.3), 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .voice-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 50px rgba(92, 124, 250, 0.5), 0 12px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .voice-btn:active {
+    transform: scale(0.98);
+  }
+
+  .voice-btn.listening {
+    background: linear-gradient(135deg, #ef4444 0%, #f87171 50%, #fca5a5 100%);
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.4), 0 8px 32px rgba(0, 0, 0, 0.3);
+    animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .voice-btn-ring {
+    @apply absolute inset-0 rounded-full;
+    border: 3px solid rgba(92, 124, 250, 0.4);
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .voice-btn.listening .voice-btn-ring {
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+
+  /* ================================================================
+     Status indicators
+     ================================================================ */
+
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-dot.online {
+    @apply bg-emerald-400;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+  }
+
+  .status-dot.offline {
+    @apply bg-red-400;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  }
+
+  .status-dot.processing {
+    @apply bg-amber-400;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+}
+
+/* ================================================================
+   Scrollbar Styling
+   ================================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(10, 14, 26, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(92, 124, 250, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(92, 124, 250, 0.5);
+}
+
+/* ================================================================
+   Background gradient mesh
+   ================================================================ */
+
+.bg-mesh {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(92, 124, 250, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
+    #0a0e1a;
+}
+
+/* ================================================================
+   Caller View specific — ultra large typography
+   ================================================================ */
+
+.caller-instruction {
+  @apply text-4xl md:text-6xl font-bold text-center leading-tight;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+}
+
+.caller-sub {
+  @apply text-lg md:text-2xl text-gray-400 text-center font-light;
+}
+
+/* ================================================================
+   Keyframe animations (referenced by Tailwind config)
+   ================================================================ */
+
+@keyframes pulse-ring {
+  0%   { transform: scale(0.9); opacity: 1; }
+  50%  { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(0.9); opacity: 0; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}

@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Environments & Secret keys
+.env
+*.env
+backend/.env
+frontend/.env
+
+# Build outputs
+dist/
+frontend/dist/
+dist-ssr/
+
+# Python cache & test output
+__pycache__/
+backend/__pycache__/
+backend/*/__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
+*.log
+logs/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
