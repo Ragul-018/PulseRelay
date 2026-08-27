@@ -58,7 +58,15 @@ export default function LiveDispatchMap({
 }) {
   const [vehiclePos, setVehiclePos] = useState(origin);
   const [progressPercent, setProgressPercent] = useState(0);
+
   const animFrameRef = useRef(null);
+  const startTimeRef = useRef(null);
+  const onArrivalRef = useRef(onArrival);
+
+  // Keep onArrivalRef updated without triggering effect restarts
+  useEffect(() => {
+    onArrivalRef.current = onArrival;
+  }, [onArrival]);
 
   // Compute Turf.js lineString and total geodesic distance
   const routeTurf = useRef(null);
@@ -80,22 +88,26 @@ export default function LiveDispatchMap({
     if (!isDispatched) {
       setVehiclePos(origin);
       setProgressPercent(0);
+      startTimeRef.current = null;
     }
   }, [origin, destination, isDispatched]);
 
-  // requestAnimationFrame animation loop using Turf.js 'along'
+  // Smooth requestAnimationFrame animation loop
   useEffect(() => {
     if (!isDispatched || !routeTurf.current || totalDistanceKm.current === 0) {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      startTimeRef.current = null;
       return;
     }
 
-    let startTime = null;
-    const durationMs = (12000 / Math.max(0.1, speedMultiplier)); // 12-second baseline animation
+    const durationMs = 12000 / Math.max(0.1, speedMultiplier); // 12-second baseline animation
 
     const animate = (timestamp) => {
-      if (!startTime) startTime = timestamp;
-      const elapsed = timestamp - startTime;
+      if (!startTimeRef.current) {
+        startTimeRef.current = timestamp;
+      }
+
+      const elapsed = timestamp - startTimeRef.current;
       const progress = Math.min(1, elapsed / durationMs);
 
       // Compute current distance along path
@@ -110,8 +122,8 @@ export default function LiveDispatchMap({
       if (progress < 1) {
         animFrameRef.current = requestAnimationFrame(animate);
       } else {
-        if (onArrival) {
-          onArrival();
+        if (onArrivalRef.current) {
+          onArrivalRef.current();
         }
       }
     };
@@ -123,7 +135,7 @@ export default function LiveDispatchMap({
         cancelAnimationFrame(animFrameRef.current);
       }
     };
-  }, [isDispatched, speedMultiplier, onArrival]);
+  }, [isDispatched, speedMultiplier]);
 
   const polylineCoords = [origin, destination];
 
@@ -138,10 +150,10 @@ export default function LiveDispatchMap({
       >
         <MapBoundsController origin={origin} destination={destination} />
 
-        {/* CartoDB Voyager Raster Tiles — Tokenless, free, high-contrast */}
+        {/* Standard OpenStreetMap Tile Layer — 100% free, no API key, clean rendering */}
         <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         {/* Route Polyline */}

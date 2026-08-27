@@ -175,7 +175,9 @@ export default function FleetDispatchSimulation({
   useEffect(() => {
     if (dispatchState !== 'DISPATCHED' && dispatchState !== 'EN_ROUTE') return;
 
-    setDispatchState('EN_ROUTE');
+    if (dispatchState === 'DISPATCHED') {
+      setDispatchState('EN_ROUTE');
+    }
 
     const durationSeconds = (dispatchedUnit?.etaMins || 2) * 8; // 16s accelerated simulation scale
     const intervalTime = 200; // ms
