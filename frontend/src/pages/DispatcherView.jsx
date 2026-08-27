@@ -296,20 +296,24 @@ export default function DispatcherView() {
     }));
   };
 
-  // Filtered incidents queue
+  // Filtered incidents queue — sorted newest first
   const filteredIncidents = useMemo(() => {
+    const sortByNewest = (arr) =>
+      [...arr].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
     if (filter === 'CLEARED') {
-      return incidents.filter((inc) => clearedIncidentIds.has(inc.timestamp));
+      return sortByNewest(incidents.filter((inc) => clearedIncidentIds.has(inc.timestamp)));
     }
 
     const activeCalls = incidents.filter((inc) => !clearedIncidentIds.has(inc.timestamp));
 
-    if (filter === 'ALL' || filter === 'ACTIVE') return activeCalls;
-    return activeCalls.filter((inc) => {
+    if (filter === 'ALL' || filter === 'ACTIVE') return sortByNewest(activeCalls);
+    return sortByNewest(activeCalls.filter((inc) => {
       const c = inc.triage?.consciousness || 'unclear';
       return c.toUpperCase() === filter;
-    });
+    }));
   }, [incidents, filter, clearedIncidentIds]);
+
 
   // Selected incident object
   const selectedIncident = useMemo(() => {
