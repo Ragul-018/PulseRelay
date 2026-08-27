@@ -6,7 +6,7 @@ import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useWebSocket } from '../hooks/useWebSocket';
 
-const API_PORT = import.meta.env.VITE_API_PORT || 8001;
+const API_PORT = import.meta.env.VITE_API_PORT || 8000;
 const WS_URL = `ws://${window.location.hostname || 'localhost'}:${API_PORT}/ws/caller`;
 const API_BASE = `http://${window.location.hostname || 'localhost'}:${API_PORT}`;
 
@@ -450,7 +450,7 @@ export default function CallerView() {
 
         {/* Live Synchronized Unit Dispatched Banner */}
         {dispatchedUnit && (
-          <div className="w-full bg-gradient-to-r from-emerald-950 via-gray-900 to-surface-900 border border-emerald-500/50 rounded-2xl p-4 shadow-2xl animate-slide-up space-y-2">
+          <div className="w-full bg-gradient-to-r from-emerald-950 via-gray-900 to-surface-900 border border-emerald-500/50 rounded-2xl p-4 shadow-2xl animate-slide-up space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl animate-pulse">
@@ -472,9 +472,19 @@ export default function CallerView() {
                 </div>
               </div>
             </div>
-            <p className="text-xs text-gray-300 italic border-t border-emerald-500/20 pt-2">
-              "Stay on the line. First responders are navigating directly to your GPS coordinates."
-            </p>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-emerald-500/20 pt-2">
+              <p className="text-xs text-gray-300 italic">
+                "Stay calm. First responders are navigating to your GPS coordinates."
+              </p>
+              <a
+                href="/track"
+                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider shadow-md flex items-center gap-1.5 transition-all"
+              >
+                <span>📱</span>
+                <span>Open Live Uber-Style Tracking</span>
+              </a>
+            </div>
           </div>
         )}
 

@@ -140,7 +140,10 @@ export default function FleetDispatchSimulation({
     }
   }, [recommendedUnitId, selectedUnitId, simulateAmbulanceBusy, isAlreadyDispatched, existingDispatchedUnit, busyUnitIds]);
 
-  const activeUnit = fleet.find((u) => u.id === selectedUnitId) || fleet[0];
+  const activeUnit = useMemo(() => {
+    if (isAlreadyDispatched && existingDispatchedUnit) return existingDispatchedUnit;
+    return fleet.find((u) => u.id === selectedUnitId) || fleet[0];
+  }, [fleet, selectedUnitId, isAlreadyDispatched, existingDispatchedUnit]);
 
   // Handle Authorize & Dispatch action
   const handleAuthorizeDispatch = async () => {
@@ -152,7 +155,7 @@ export default function FleetDispatchSimulation({
     setRemainingTime(activeUnit.etaMins * 60);
 
     // Call backend endpoint to fan-out to caller screen
-    const apiPort = import.meta.env.VITE_API_PORT || 8001;
+    const apiPort = import.meta.env.VITE_API_PORT || 8000;
     try {
       await fetch(`http://${window.location.hostname || 'localhost'}:${apiPort}/api/dispatch`, {
         method: 'POST',
@@ -164,6 +167,16 @@ export default function FleetDispatchSimulation({
           unit_type: activeUnit.type,
           eta_minutes: activeUnit.etaMins,
           speed_mph: activeUnit.speedMph,
+          target_hospital: selectedHospital
+            ? {
+                id: selectedHospital.id,
+                name: selectedHospital.name,
+                address: selectedHospital.address,
+                icu_beds_available: selectedHospital.icu_beds_available,
+                distance_miles: selectedHospital.distance_miles,
+                eta_minutes: selectedHospital.eta_minutes,
+              }
+            : null,
         }),
       });
     } catch (err) {

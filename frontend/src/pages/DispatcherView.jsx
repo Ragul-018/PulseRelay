@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import TriageCard from '../components/TriageCard';
 import { useWebSocket } from '../hooks/useWebSocket';
 
-const API_PORT = import.meta.env.VITE_API_PORT || 8001;
+const API_PORT = import.meta.env.VITE_API_PORT || 8000;
 const WS_URL = `ws://${window.location.hostname || 'localhost'}:${API_PORT}/ws/dispatch`;
 
 /**
@@ -27,13 +27,71 @@ const SAMPLE_INCIDENT = {
 };
 
 export default function DispatcherView() {
-  const [incidents, setIncidents] = useState([SAMPLE_INCIDENT]);
+  const [incidents, setIncidents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pulserelay_incident_objects');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [SAMPLE_INCIDENT];
+  });
+
   const [selectedId, setSelectedId] = useState(SAMPLE_INCIDENT.timestamp);
   const [filter, setFilter] = useState('ALL');
 
   // Per-Incident Dispatch Registry State: { [incidentTimestamp]: { unit, status, dispatchedAt } }
-  const [dispatchedRegistry, setDispatchedRegistry] = useState({});
-  const [clearedIncidentIds, setClearedIncidentIds] = useState(new Set());
+  const [dispatchedRegistry, setDispatchedRegistry] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pulserelay_dispatched_registry');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const [clearedIncidentIds, setClearedIncidentIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pulserelay_cleared_incidents');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch (e) {
+      return new Set();
+    }
+  });
+
+  // Sync state changes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('pulserelay_cleared_incidents', JSON.stringify(Array.from(clearedIncidentIds)));
+    } catch (e) {}
+  }, [clearedIncidentIds]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pulserelay_dispatched_registry', JSON.stringify(dispatchedRegistry));
+    } catch (e) {}
+  }, [dispatchedRegistry]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pulserelay_incident_objects', JSON.stringify(incidents));
+    } catch (e) {}
+  }, [incidents]);
+
+  const mergeIncidents = useCallback((incomingList) => {
+    if (!Array.isArray(incomingList)) return;
+    setIncidents((prev) => {
+      const map = new Map();
+      prev.forEach((inc) => {
+        if (inc && inc.timestamp) map.set(inc.timestamp, inc);
+      });
+      incomingList.forEach((inc) => {
+        if (inc && inc.timestamp) map.set(inc.timestamp, inc);
+      });
+      return Array.from(map.values());
+    });
+  }, []);
 
   const handleDispatchUnit = useCallback((incidentTimestamp, unit) => {
     setDispatchedRegistry((prev) => ({
@@ -52,6 +110,18 @@ export default function DispatcherView() {
       next.add(incidentTimestamp);
       return next;
     });
+
+    // Notify backend so all connected dispatchers receive the event_cleared broadcast
+    const ports = [API_PORT, 8000, 8001];
+    for (const port of ports) {
+      try {
+        fetch(`http://${window.location.hostname || 'localhost'}:${port}/api/clear_incident`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ incident_timestamp: incidentTimestamp }),
+        }).catch(() => {});
+      } catch (e) {}
+    }
 
     // Release unit from registry so it returns to available fleet pool
     setDispatchedRegistry((prev) => {
@@ -81,10 +151,7 @@ export default function DispatcherView() {
 
   const handleMessage = useCallback((data) => {
     if (data.type === 'triage_update') {
-      setIncidents((prev) => {
-        const newList = [data, ...prev].slice(0, 100);
-        return newList;
-      });
+      mergeIncidents([data]);
 
       // Auto-select latest incident
       setSelectedId(data.timestamp);
@@ -100,10 +167,17 @@ export default function DispatcherView() {
         };
       });
     } else if (data.type === 'history') {
+      if (data.cleared_timestamps && Array.isArray(data.cleared_timestamps)) {
+        setClearedIncidentIds((prev) => {
+          const next = new Set(prev);
+          data.cleared_timestamps.forEach((ts) => next.add(ts));
+          return next;
+        });
+      }
       if (data.incidents && Array.isArray(data.incidents)) {
-        const reversed = [...data.incidents].reverse();
-        setIncidents(reversed);
+        mergeIncidents(data.incidents);
 
+        const reversed = [...data.incidents].reverse();
         if (reversed.length > 0) {
           setSelectedId(reversed[0].timestamp);
         }
@@ -119,8 +193,16 @@ export default function DispatcherView() {
         });
         setStats(newStats);
       }
+    } else if (data.type === 'incident_cleared') {
+      if (data.incident_timestamp) {
+        setClearedIncidentIds((prev) => {
+          const next = new Set(prev);
+          next.add(data.incident_timestamp);
+          return next;
+        });
+      }
     }
-  }, []);
+  }, [mergeIncidents]);
 
   const { isConnected } = useWebSocket(WS_URL, {
     onMessage: handleMessage,
@@ -135,9 +217,17 @@ export default function DispatcherView() {
           const res = await fetch(`http://${window.location.hostname || 'localhost'}:${port}/api/incidents`);
           if (res.ok) {
             const data = await res.json();
+            if (data.cleared_timestamps && Array.isArray(data.cleared_timestamps)) {
+              setClearedIncidentIds((prev) => {
+                const next = new Set(prev);
+                data.cleared_timestamps.forEach((ts) => next.add(ts));
+                return next;
+              });
+            }
             if (data.incidents && Array.isArray(data.incidents) && data.incidents.length > 0) {
+              mergeIncidents(data.incidents);
+
               const reversed = [...data.incidents].reverse();
-              setIncidents(reversed);
               setSelectedId(reversed[0].timestamp);
 
               const newStats = { total: 0, responsive: 0, unresponsive: 0, unclear: 0 };
@@ -223,9 +313,9 @@ export default function DispatcherView() {
 
   // Selected incident object
   const selectedIncident = useMemo(() => {
-    if (!incidents.length) return null;
-    return incidents.find((inc) => inc.timestamp === selectedId) || incidents[0];
-  }, [incidents, selectedId]);
+    if (!filteredIncidents.length) return null;
+    return filteredIncidents.find((inc) => inc.timestamp === selectedId) || filteredIncidents[0];
+  }, [filteredIncidents, selectedId]);
 
   const selectedIndex = useMemo(() => {
     if (!selectedIncident) return 1;
@@ -371,6 +461,7 @@ export default function DispatcherView() {
                       isCleared={isCleared}
                       dispatchRecord={dispatchRecord}
                       onClick={() => setSelectedId(incident.timestamp)}
+                      onClear={() => handleClearIncident(incident.timestamp)}
                     />
                   );
                 })
@@ -423,7 +514,7 @@ export default function DispatcherView() {
 /**
  * QueueItemCard — Compact row in the Master Incident List.
  */
-function QueueItemCard({ data, incidentNumber, isSelected, isLatest, isCleared, dispatchRecord, onClick }) {
+function QueueItemCard({ data, incidentNumber, isSelected, isLatest, isCleared, dispatchRecord, onClick, onClear }) {
   const { triage = {}, timestamp, transcript = '', gps_location } = data || {};
 
   const formattedTime = new Date(timestamp).toLocaleTimeString('en-US', {
@@ -491,7 +582,22 @@ function QueueItemCard({ data, incidentNumber, isSelected, isLatest, isCleared, 
           </span>
         </div>
 
-        <span className="text-xs text-gray-400 font-mono">{formattedTime}</span>
+        <div className="flex items-center gap-2">
+          {!isCleared && onClear && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClear();
+              }}
+              title="Clear & resolve event from active queue"
+              className="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-700 hover:bg-emerald-600/40 text-gray-300 hover:text-emerald-300 border border-white/10 hover:border-emerald-500/50 transition-all flex items-center gap-1"
+            >
+              <span>✓</span>
+              <span>Clear</span>
+            </button>
+          )}
+          <span className="text-xs text-gray-400 font-mono">{formattedTime}</span>
+        </div>
       </div>
 
       {/* Complaint */}

@@ -37,6 +37,7 @@ from backend.services.triage_service import TriageExtractorService
 from backend.services.transcription_service import TranscriptionService
 from backend.services.location_service import LocationService
 from backend.services.supabase_service import SupabaseService
+from backend.services.hospital_service import HospitalService
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -53,17 +54,18 @@ class ConnectionManager:
         self.dispatcher_connections: List[WebSocket] = []
         self.caller_connections: List[WebSocket] = []
         self._incident_history: List[dict] = []
+        self.cleared_incident_timestamps: Set[str] = set()
 
     async def connect_dispatcher(self, websocket: WebSocket) -> None:
         await websocket.accept()
         self.dispatcher_connections.append(websocket)
-        # Send existing incident history on connect
+        # Send existing incident history + cleared timestamps on connect
         history = self.get_history()
-        if history:
-            await websocket.send_json({
-                "type": "history",
-                "incidents": history,
-            })
+        await websocket.send_json({
+            "type": "history",
+            "incidents": history,
+            "cleared_timestamps": list(self.cleared_incident_timestamps),
+        })
         logger.info("Dispatcher connected. Total: %d", len(self.dispatcher_connections))
 
     async def connect_caller(self, websocket: WebSocket) -> None:
@@ -118,6 +120,32 @@ class ConnectionManager:
             if db_history:
                 return db_history
         return self._incident_history[-50:]
+
+    async def clear_incident(self, incident_timestamp: str) -> None:
+        """Mark an incident as cleared and broadcast clearance to all dispatchers."""
+        self.cleared_incident_timestamps.add(incident_timestamp)
+        payload = {
+            "type": "incident_cleared",
+            "incident_timestamp": incident_timestamp,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        disconnected = []
+        for connection in self.dispatcher_connections:
+            try:
+                await connection.send_json(payload)
+            except Exception:
+                disconnected.append(connection)
+        for conn in disconnected:
+            self.dispatcher_connections.remove(conn)
+
+        disconnected_callers = []
+        for connection in self.caller_connections:
+            try:
+                await connection.send_json(payload)
+            except Exception:
+                disconnected_callers.append(connection)
+        for conn in disconnected_callers:
+            self.caller_connections.remove(conn)
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +212,29 @@ class TriageAPIResponse(BaseModel):
     gps_location: Optional[GPSLocation] = None
 
 
+class TargetHospitalPayload(BaseModel):
+    id: str
+    name: str
+    address: Optional[str] = None
+    icu_beds_available: Optional[int] = None
+    distance_miles: Optional[float] = None
+    eta_minutes: Optional[int] = None
+
+
+class DispatchRequest(BaseModel):
+    incident_timestamp: Optional[str] = None
+    unit_id: str
+    unit_name: str
+    unit_type: str
+    eta_minutes: int
+    speed_mph: Optional[int] = 48
+    target_hospital: Optional[TargetHospitalPayload] = None
+
+
+class ClearIncidentRequest(BaseModel):
+    incident_timestamp: str
+
+
 # ---------------------------------------------------------------------------
 # REST Endpoints
 # ---------------------------------------------------------------------------
@@ -197,6 +248,8 @@ async def root():
         "endpoints": {
             "triage": "POST /api/triage",
             "transcribe": "POST /api/transcribe",
+            "clear_incident": "POST /api/clear_incident",
+            "hospitals": "GET /api/hospitals",
             "caller_ws": "WS /ws/caller",
             "dispatch_ws": "WS /ws/dispatch",
         },
@@ -255,18 +308,9 @@ async def extract_triage(request: TranscriptRequest):
     )
 
 
-class DispatchRequest(BaseModel):
-    incident_timestamp: Optional[str] = None
-    unit_id: str
-    unit_name: str
-    unit_type: str
-    eta_minutes: int
-    speed_mph: Optional[int] = 48
-
-
 @app.post("/api/dispatch")
 async def authorize_dispatch(request: DispatchRequest):
-    """Authorize and broadcast unit dispatch status to callers and dispatchers."""
+    """Authorize and broadcast unit dispatch status + target hospital assignment to callers and dispatchers."""
     payload = {
         "type": "unit_dispatched",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -278,6 +322,7 @@ async def authorize_dispatch(request: DispatchRequest):
             "eta_minutes": request.eta_minutes,
             "speed_mph": request.speed_mph,
         },
+        "target_hospital": request.target_hospital.model_dump() if request.target_hospital else None,
     }
     await manager.broadcast_to_callers(payload)
     await manager.broadcast_to_dispatchers(payload)
@@ -285,10 +330,48 @@ async def authorize_dispatch(request: DispatchRequest):
     return {"status": "dispatched", "payload": payload}
 
 
+@app.post("/api/clear_incident")
+async def clear_incident(request: ClearIncidentRequest):
+    """Mark an emergency incident as cleared and remove it from the active emergency queue."""
+    await manager.clear_incident(request.incident_timestamp)
+    logger.info("Incident %s cleared from active queue.", request.incident_timestamp)
+    return {"status": "cleared", "incident_timestamp": request.incident_timestamp}
+
+
 @app.get("/api/incidents")
 async def get_incidents():
-    """Return recent incident history."""
-    return {"incidents": manager.get_history()}
+    """Return recent incident history and list of cleared timestamps."""
+    return {
+        "incidents": manager.get_history(),
+        "cleared_timestamps": list(manager.cleared_incident_timestamps),
+    }
+
+
+@app.get("/api/incidents/{incident_id}")
+async def get_single_incident(incident_id: str):
+    """Return single incident telemetry by timestamp or ID for live tracking view."""
+    history = manager.get_history()
+    for inc in history:
+        if inc.get("timestamp") == incident_id or str(inc.get("id")) == incident_id:
+            return {"incident": inc}
+    if history:
+        return {"incident": history[0]}
+    return {"error": "Incident not found"}
+
+
+@app.get("/api/hospitals")
+async def get_hospitals(
+    latitude: Optional[float] = 13.0827,
+    longitude: Optional[float] = 80.2707,
+    chief_complaint: Optional[str] = None,
+):
+    """Return regional hospital bed capacity and emergency routing matrix."""
+    matrix = HospitalService.get_hospitals_matrix(
+        latitude=latitude,
+        longitude=longitude,
+        chief_complaint=chief_complaint,
+    )
+    return {"hospitals": matrix}
 
 
 from fastapi import Form

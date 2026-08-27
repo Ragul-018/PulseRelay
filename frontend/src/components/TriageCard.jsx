@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import FleetDispatchSimulation from './FleetDispatchSimulation';
+import HospitalCapacityMatrix from './HospitalCapacityMatrix';
 
 /**
  * TriageCard — Dispatcher triage telemetry detail view.
@@ -22,6 +23,8 @@ export default function TriageCard({
   onClearIncident,
   isCleared = false,
 }) {
+  const [selectedHospital, setSelectedHospital] = useState(null);
+
   if (!data) return null;
 
   const { triage, timestamp, transcript, gps_location } = data;
@@ -229,11 +232,20 @@ export default function TriageCard({
         </div>
       </div>
 
+      {/* Regional Hospital Bed & ICU Capacity Matrix */}
+      <HospitalCapacityMatrix
+        incidentGps={gps_location}
+        chiefComplaint={triage?.chief_complaint}
+        selectedHospitalId={selectedHospital?.id}
+        onSelectHospital={(hosp) => setSelectedHospital(hosp)}
+      />
+
       {/* Fleet Dispatch Simulation & Telemetry */}
       <FleetDispatchSimulation
         incidentData={data}
         dispatchRecord={dispatchRecord}
         busyUnitIds={busyUnitIds}
+        selectedHospital={selectedHospital}
         onDispatchSuccess={onDispatchSuccess}
         onClearIncident={onClearIncident}
         isCleared={isCleared}
