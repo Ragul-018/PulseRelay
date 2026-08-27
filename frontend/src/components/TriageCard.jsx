@@ -19,6 +19,8 @@ export default function TriageCard({
   dispatchRecord = null,
   busyUnitIds = new Set(),
   onDispatchSuccess,
+  onClearIncident,
+  isCleared = false,
 }) {
   if (!data) return null;
 
@@ -233,6 +235,8 @@ export default function TriageCard({
         dispatchRecord={dispatchRecord}
         busyUnitIds={busyUnitIds}
         onDispatchSuccess={onDispatchSuccess}
+        onClearIncident={onClearIncident}
+        isCleared={isCleared}
       />
 
       {/* Original Speech Transcript */}

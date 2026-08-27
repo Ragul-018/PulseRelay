@@ -33,6 +33,7 @@ export default function DispatcherView() {
 
   // Per-Incident Dispatch Registry State: { [incidentTimestamp]: { unit, status, dispatchedAt } }
   const [dispatchedRegistry, setDispatchedRegistry] = useState({});
+  const [clearedIncidentIds, setClearedIncidentIds] = useState(new Set());
 
   const handleDispatchUnit = useCallback((incidentTimestamp, unit) => {
     setDispatchedRegistry((prev) => ({
@@ -45,16 +46,31 @@ export default function DispatcherView() {
     }));
   }, []);
 
+  const handleClearIncident = useCallback((incidentTimestamp) => {
+    setClearedIncidentIds((prev) => {
+      const next = new Set(prev);
+      next.add(incidentTimestamp);
+      return next;
+    });
+
+    // Release unit from registry so it returns to available fleet pool
+    setDispatchedRegistry((prev) => {
+      const copy = { ...prev };
+      delete copy[incidentTimestamp];
+      return copy;
+    });
+  }, []);
+
   // Compute active busy unit IDs
   const busyUnitIds = useMemo(() => {
     const ids = new Set();
-    Object.values(dispatchedRegistry).forEach((entry) => {
-      if (entry?.unit?.id) {
+    Object.entries(dispatchedRegistry).forEach(([ts, entry]) => {
+      if (!clearedIncidentIds.has(ts) && entry?.unit?.id) {
         ids.add(entry.unit.id);
       }
     });
     return ids;
-  }, [dispatchedRegistry]);
+  }, [dispatchedRegistry, clearedIncidentIds]);
 
   const [stats, setStats] = useState({
     total: 1,
@@ -192,12 +208,18 @@ export default function DispatcherView() {
 
   // Filtered incidents queue
   const filteredIncidents = useMemo(() => {
-    if (filter === 'ALL') return incidents;
-    return incidents.filter((inc) => {
+    if (filter === 'CLEARED') {
+      return incidents.filter((inc) => clearedIncidentIds.has(inc.timestamp));
+    }
+
+    const activeCalls = incidents.filter((inc) => !clearedIncidentIds.has(inc.timestamp));
+
+    if (filter === 'ALL' || filter === 'ACTIVE') return activeCalls;
+    return activeCalls.filter((inc) => {
       const c = inc.triage?.consciousness || 'unclear';
       return c.toUpperCase() === filter;
     });
-  }, [incidents, filter]);
+  }, [incidents, filter, clearedIncidentIds]);
 
   // Selected incident object
   const selectedIncident = useMemo(() => {
@@ -312,7 +334,7 @@ export default function DispatcherView() {
 
               {/* Filter Pills */}
               <div className="flex gap-1.5 overflow-x-auto pb-1">
-                {['ALL', 'UNRESPONSIVE', 'UNCLEAR', 'RESPONSIVE'].map((f) => (
+                {['ACTIVE', 'CLEARED', 'ALL', 'UNRESPONSIVE', 'UNCLEAR', 'RESPONSIVE'].map((f) => (
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
@@ -322,7 +344,7 @@ export default function DispatcherView() {
                         : 'bg-surface-800 text-gray-400 hover:text-white hover:bg-surface-700'
                     }`}
                   >
-                    {f}
+                    {f} {f === 'CLEARED' && clearedIncidentIds.size > 0 ? `(${clearedIncidentIds.size})` : ''}
                   </button>
                 ))}
               </div>
@@ -337,6 +359,8 @@ export default function DispatcherView() {
                   const actualNumber = incidents.length - incidents.findIndex((x) => x.timestamp === incident.timestamp);
                   const dispatchRecord = dispatchedRegistry[incident.timestamp];
 
+                  const isCleared = clearedIncidentIds.has(incident.timestamp);
+
                   return (
                     <QueueItemCard
                       key={`${incident.timestamp}-${i}`}
@@ -344,6 +368,7 @@ export default function DispatcherView() {
                       incidentNumber={actualNumber}
                       isSelected={isSelected}
                       isLatest={isLatest}
+                      isCleared={isCleared}
                       dispatchRecord={dispatchRecord}
                       onClick={() => setSelectedId(incident.timestamp)}
                     />
@@ -371,6 +396,8 @@ export default function DispatcherView() {
                 dispatchRecord={dispatchedRegistry[selectedIncident.timestamp]}
                 busyUnitIds={busyUnitIds}
                 onDispatchSuccess={(unit) => handleDispatchUnit(selectedIncident.timestamp, unit)}
+                onClearIncident={(timestamp) => handleClearIncident(timestamp)}
+                isCleared={clearedIncidentIds.has(selectedIncident.timestamp)}
               />
             ) : (
               <div className="glass-card p-12 flex flex-col items-center justify-center text-center min-h-[450px]">
@@ -396,7 +423,7 @@ export default function DispatcherView() {
 /**
  * QueueItemCard — Compact row in the Master Incident List.
  */
-function QueueItemCard({ data, incidentNumber, isSelected, isLatest, dispatchRecord, onClick }) {
+function QueueItemCard({ data, incidentNumber, isSelected, isLatest, isCleared, dispatchRecord, onClick }) {
   const { triage = {}, timestamp, transcript = '', gps_location } = data || {};
 
   const formattedTime = new Date(timestamp).toLocaleTimeString('en-US', {
@@ -434,13 +461,19 @@ function QueueItemCard({ data, incidentNumber, isSelected, isLatest, dispatchRec
             #{incidentNumber}
           </span>
 
-          {isLatest && (
+          {isCleared && (
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
+              🟢 CLEARED
+            </span>
+          )}
+
+          {isLatest && !isCleared && (
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-pulse-500/20 text-pulse-300 border border-pulse-500/40 animate-pulse">
               NEW
             </span>
           )}
 
-          {dispatchRecord && (
+          {dispatchRecord && !isCleared && (
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/40 animate-pulse flex items-center gap-1">
               <span>{dispatchRecord.unit?.icon || '🚑'}</span>
               <span>{dispatchRecord.unit?.id || 'DISPATCHED'}</span>

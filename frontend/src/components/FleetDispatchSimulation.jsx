@@ -63,6 +63,8 @@ export default function FleetDispatchSimulation({
   dispatchRecord = null,
   busyUnitIds = new Set(),
   onDispatchSuccess,
+  onClearIncident,
+  isCleared = false,
 }) {
   const [fleet, setFleet] = useState(INITIAL_FLEET);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
@@ -72,7 +74,7 @@ export default function FleetDispatchSimulation({
   const existingDispatchedUnit = dispatchRecord?.unit;
 
   const [dispatchState, setDispatchState] = useState(
-    isAlreadyDispatched ? dispatchRecord.status || 'EN_ROUTE' : 'IDLE'
+    isCleared ? 'CLEARED' : isAlreadyDispatched ? dispatchRecord.status || 'EN_ROUTE' : 'IDLE'
   );
   const [dispatchedUnit, setDispatchedUnit] = useState(existingDispatchedUnit || null);
   const [progress, setProgress] = useState(isAlreadyDispatched ? 100 : 0);
@@ -82,7 +84,9 @@ export default function FleetDispatchSimulation({
 
   // Key state by incidentId whenever active incident changes
   useEffect(() => {
-    if (dispatchRecord) {
+    if (isCleared) {
+      setDispatchState('CLEARED');
+    } else if (dispatchRecord) {
       setDispatchState(dispatchRecord.status || 'EN_ROUTE');
       setDispatchedUnit(dispatchRecord.unit);
       if (dispatchRecord.unit?.id) {
@@ -94,7 +98,7 @@ export default function FleetDispatchSimulation({
       setProgress(0);
       setRemainingTime(0);
     }
-  }, [incidentId, dispatchRecord]);
+  }, [incidentId, dispatchRecord, isCleared]);
 
   const triage = incidentData?.triage || {};
   const complaint = (triage.chief_complaint || '').toUpperCase();
@@ -168,6 +172,14 @@ export default function FleetDispatchSimulation({
 
     if (onDispatchSuccess) {
       onDispatchSuccess(activeUnit);
+    }
+  };
+
+  // Handle Resolve & Clear Incident
+  const handleResolveAndClear = () => {
+    setDispatchState('CLEARED');
+    if (onClearIncident && incidentData?.timestamp) {
+      onClearIncident(incidentData.timestamp);
     }
   };
 
@@ -249,14 +261,34 @@ export default function FleetDispatchSimulation({
         </div>
       </div>
 
+      {/* Cleared Incident Banner */}
+      {dispatchState === 'CLEARED' && (
+        <div className="bg-emerald-500/15 border border-emerald-500/40 rounded-xl p-3.5 flex items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🟢</span>
+            <div>
+              <h4 className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                INCIDENT RESOLVED & CLEARED
+              </h4>
+              <p className="text-xs text-gray-300">
+                Emergency call has been marked as resolved. Assigned unit returned to active fleet service.
+              </p>
+            </div>
+          </div>
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase font-mono">
+            CLEARED
+          </span>
+        </div>
+      )}
+
       {/* Already Dispatched Incident Alert Banner */}
-      {isAlreadyDispatched && (
+      {isAlreadyDispatched && dispatchState !== 'CLEARED' && (
         <div className="bg-blue-500/15 border border-blue-500/40 rounded-xl p-3.5 flex items-center justify-between gap-3 animate-fade-in">
           <div className="flex items-center gap-3">
             <span className="text-2xl animate-pulse">🚑</span>
             <div>
               <h4 className="text-xs font-bold text-blue-300 uppercase tracking-wider">
-                ALREADY DISPATCHED TO THIS INCIDENT
+                UNIT ASSIGNED & DISPATCHED
               </h4>
               <p className="text-xs text-gray-300">
                 Unit <strong className="text-white">{existingDispatchedUnit?.name}</strong> is currently assigned & en route.
@@ -270,7 +302,7 @@ export default function FleetDispatchSimulation({
       )}
 
       {/* Fail-safe alert banner if active */}
-      {!isAlreadyDispatched && simulateAmbulanceBusy && (
+      {!isAlreadyDispatched && simulateAmbulanceBusy && dispatchState !== 'CLEARED' && (
         <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl p-3 flex items-start gap-3 animate-fade-in">
           <span className="text-xl">⚠️</span>
           <div className="text-xs text-amber-200">
@@ -391,20 +423,24 @@ export default function FleetDispatchSimulation({
             onArrival={() => setDispatchState('ON_SCENE')}
           />
 
-          {/* Dispatch Action Button & Status */}
+          {/* Dispatch Action Buttons & Status */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
             <div className="text-xs text-gray-400">
               Status:{' '}
               <span
                 className={`font-bold font-mono ${
-                  dispatchState === 'ON_SCENE'
+                  dispatchState === 'CLEARED'
+                    ? 'text-emerald-400'
+                    : dispatchState === 'ON_SCENE'
                     ? 'text-emerald-400'
                     : dispatchState === 'EN_ROUTE'
                     ? 'text-amber-400 animate-pulse'
                     : 'text-pulse-400'
                 }`}
               >
-                {dispatchState === 'IDLE'
+                {dispatchState === 'CLEARED'
+                  ? '🟢 CLEARED & RESOLVED'
+                  : dispatchState === 'IDLE'
                   ? 'READY TO DISPATCH'
                   : dispatchState === 'EN_ROUTE'
                   ? '⚡ EN ROUTE TO INCIDENT'
@@ -412,26 +448,27 @@ export default function FleetDispatchSimulation({
               </span>
             </div>
 
-            <button
-              onClick={handleAuthorizeDispatch}
-              disabled={isAlreadyDispatched || dispatchState === 'EN_ROUTE' || dispatchState === 'ON_SCENE'}
-              className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2 ${
-                isAlreadyDispatched
-                  ? 'bg-blue-600/30 border border-blue-500/50 text-blue-300 cursor-not-allowed opacity-80'
-                  : 'bg-gradient-to-r from-pulse-600 to-indigo-600 hover:from-pulse-500 hover:to-indigo-500 text-white shadow-pulse-500/30'
-              }`}
-            >
-              <span>{isAlreadyDispatched ? '✓' : '⚡'}</span>
-              <span>
-                {isAlreadyDispatched
-                  ? `ALREADY DISPATCHED (${existingDispatchedUnit?.id || activeUnit.id})`
-                  : dispatchState === 'IDLE'
-                  ? `Authorize & Dispatch (${activeUnit.id})`
-                  : dispatchState === 'EN_ROUTE'
-                  ? 'Unit Dispatched & En Route...'
-                  : 'Unit On Scene'}
-              </span>
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {dispatchState !== 'CLEARED' && (isAlreadyDispatched || dispatchState === 'EN_ROUTE' || dispatchState === 'ON_SCENE') && (
+                <button
+                  onClick={handleResolveAndClear}
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <span>🟢</span>
+                  <span>Mark Resolved & Clear</span>
+                </button>
+              )}
+
+              {dispatchState === 'IDLE' && (
+                <button
+                  onClick={handleAuthorizeDispatch}
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-pulse-600 to-indigo-600 hover:from-pulse-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-pulse-500/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <span>⚡</span>
+                  <span>Authorize & Dispatch ({activeUnit.id})</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
